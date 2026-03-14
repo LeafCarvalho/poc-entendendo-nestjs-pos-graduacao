@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chat POC</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f8fb;
+        --panel: #ffffff;
+        --border: #d9e1ec;
+        --text: #203040;
+        --muted: #6a7a8c;
+        --accent: #3b82f6;
+        --accent-soft: #eff6ff;
+        --success: #1f8f68;
+        --danger: #c24157;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+        color: var(--text);
+      }
+
+      main {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        min-height: 100vh;
+      }
+
+      .notice-wrap {
+        padding: 16px 16px 0;
+      }
+
+      .notice {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 14px 16px;
+        border: 1px solid #cfe0ff;
+        border-radius: 20px 20px 20px 8px;
+        background: var(--accent-soft);
+        color: #21466f;
+      }
+
+      .notice p {
+        margin: 0;
+        line-height: 1.5;
+      }
+
+      .notice button {
+        flex: none;
+        width: 32px;
+        height: 32px;
+        border: 0;
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.12);
+        color: inherit;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+
+      .chat-shell {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        min-height: 0;
+        padding: 16px;
+      }
+
+      .status {
+        max-width: 960px;
+        width: 100%;
+        margin: 0 auto 12px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.85);
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .status.connected {
+        color: var(--success);
+      }
+
+      .status.error {
+        color: var(--danger);
+      }
+
+      .messages {
+        max-width: 960px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 8px 0 20px;
+        overflow-y: auto;
+      }
+
+      .message {
+        max-width: 720px;
+        margin-bottom: 12px;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 18px 18px 18px 8px;
+        background: var(--panel);
+        box-shadow: 0 8px 24px rgba(25, 50, 80, 0.05);
+      }
+
+      .message strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 0.92rem;
+      }
+
+      .message span {
+        display: block;
+        line-height: 1.5;
+      }
+
+      .message time {
+        display: block;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      .empty {
+        margin: 24px 0 0;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .composer-wrap {
+        padding: 0 16px 16px;
+      }
+
+      .composer {
+        display: grid;
+        grid-template-columns: 180px 1fr auto;
+        gap: 10px;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 10px 30px rgba(25, 50, 80, 0.06);
+      }
+
+      input,
+      textarea,
+      button {
+        font: inherit;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #fff;
+        color: var(--text);
+      }
+
+      textarea {
+        height: auto;
+        min-height: 100px;
+        resize: vertical;
+      }
+
+      input:focus,
+      textarea:focus {
+        outline: none;
+        border-color: rgba(59, 130, 246, 0.45);
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.08);
+      }
+
+      button[type="submit"] {
+        border: 0;
+        border-radius: 16px;
+        padding: 0 18px;
+        background: var(--accent);
+        color: #fff;
+        cursor: pointer;
+      }
+
+      @media (max-width: 720px) {
+        .composer {
+          grid-template-columns: 1fr;
+        }
+
+        button[type="submit"] {
+          min-height: 48px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="notice-wrap" id="notice-wrap">
+        <div class="notice">
+          <p>Abra em duas abas ou janelas para simular a conversa em tempo real.</p>
+          <button id="close-notice" type="button" aria-label="Fechar aviso">x</button>
+        </div>
+      </div>
+
+      <section class="chat-shell">
+        <p class="status" id="status">Conectando ao servidor...</p>
+        <div class="messages" id="messages"></div>
+      </section>
+
+      <div class="composer-wrap">
+        <form class="composer" id="chat-form">
+          <input
+            id="user"
+            name="user"
+            placeholder="Usuario"
+            required
+            autocomplete="nickname"
+          />
+          <textarea
+            id="content"
+            name="content"
+            placeholder="Digite uma mensagem"
+            required
+          ></textarea>
+          <button type="submit">Enviar</button>
+        </form>
+      </div>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      const form = document.getElementById('chat-form');
+      const status = document.getElementById('status');
+      const userInput = document.getElementById('user');
+      const contentInput = document.getElementById('content');
+      const messagesContainer = document.getElementById('messages');
+      const closeNoticeButton = document.getElementById('close-notice');
+      const noticeWrap = document.getElementById('notice-wrap');
+
+      function renderEmptyState() {
+        if (messagesContainer.children.length > 0) {
+          return;
+        }
+
+        const empty = document.createElement('p');
+        empty.className = 'empty';
+        empty.textContent = 'Nenhuma mensagem ainda.';
+        messagesContainer.appendChild(empty);
+      }
+
+      function clearEmptyState() {
+        const empty = messagesContainer.querySelector('.empty');
+        if (empty) {
+          empty.remove();
+        }
+      }
+
+      function formatDate(date) {
+        return new Intl.DateTimeFormat('pt-BR', {
+          dateStyle: 'short',
+          timeStyle: 'medium',
+        }).format(new Date(date));
+      }
+
+      function appendMessage(message) {
+        clearEmptyState();
+
+        const article = document.createElement('article');
+        article.className = 'message';
+        article.innerHTML = `
+          <strong>${message.user}</strong>
+          <span>${message.content}</span>
+          <time datetime="${message.createdAt}">${formatDate(message.createdAt)}</time>
+        `;
+
+        messagesContainer.appendChild(article);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+
+      async function loadHistory() {
+        const response = await fetch('/chat/messages');
+
+        if (!response.ok) {
+          throw new Error('Falha ao carregar histórico');
+        }
+
+        const messages = await response.json();
+
+        messagesContainer.innerHTML = '';
+        messages.forEach(appendMessage);
+        renderEmptyState();
+      }
+
+      function updateStatus(text, tone) {
+        status.textContent = text;
+        status.classList.remove('connected', 'error');
+
+        if (tone) {
+          status.classList.add(tone);
+        }
+      }
+
+      function submitMessage() {
+        if (!form.reportValidity()) {
+          updateStatus('Preencha usuário e mensagem antes de enviar.', 'error');
+          return;
+        }
+
+        const user = userInput.value.trim();
+        const content = contentInput.value.trim();
+
+        socket.emit('chat:send-message', { user, content });
+        contentInput.value = '';
+        contentInput.focus();
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        submitMessage();
+      });
+
+      contentInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault();
+          submitMessage();
+        }
+      });
+
+      closeNoticeButton.addEventListener('click', () => {
+        noticeWrap.style.display = 'none';
+      });
+
+      socket.on('connect', () => {
+        updateStatus(`Conectado como ${socket.id}`, 'connected');
+      });
+
+      socket.on('disconnect', () => {
+        updateStatus('Desconectado do servidor.', 'error');
+      });
+
+      socket.on('chat:message', (message) => {
+        appendMessage(message);
+      });
+
+      loadHistory().catch(() => {
+        updateStatus('Nao foi possivel carregar o historico.', 'error');
+        renderEmptyState();
+      });
+    </script>
+  </body>
+</html>
